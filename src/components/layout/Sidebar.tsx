@@ -54,7 +54,7 @@ function EmptyConnectionsState({ colors }: { colors: ThemeColors }): ReactNode {
     <box flexGrow={1} flexDirection="column" padding={1} gap={0}>
       <text fg={colors.muted}>No connections yet</text>
       <text fg={colors.muted}>
-        Press <span fg={colors.info}>a</span> to add one
+        Press <span fg={colors.accent}>a</span> to add one
       </text>
     </box>
   )
@@ -63,21 +63,21 @@ function EmptyConnectionsState({ colors }: { colors: ThemeColors }): ReactNode {
 function SidebarFooter({ hasConnections, colors }: { hasConnections: boolean; colors: ThemeColors }): ReactNode {
   return (
     <box paddingX={1} flexDirection="column" flexShrink={0}>
-      <text fg={colors.border}>
-        <span fg={colors.info}>[a]</span> Add
+      <text fg={colors.info}>
+        <span fg={colors.accent}>[a]</span> Add
         {hasConnections && (
           <>
             {"  "}
-            <span fg={colors.info}>[e]</span> Edit
+            <span fg={colors.accent}>[e]</span> Edit
             {"  "}
-            <span fg={colors.info}>[s]</span> Search
+            <span fg={colors.accent}>[s]</span> Search
           </>
         )}
       </text>
       {hasConnections && (
-        <text fg={colors.border}>
-          <span fg={colors.info}>[Enter]</span> Open{"  "}
-          <span fg={colors.info}>[x]</span> Del
+        <text fg={colors.info}>
+          <span fg={colors.accent}>[Enter]</span> Open{"  "}
+          <span fg={colors.accent}>[x]</span> Del
         </text>
       )}
     </box>
@@ -157,7 +157,7 @@ export function Sidebar({
   const { colors } = useTheme()
   const [selectedIndex, setSelectedIndex] = useState(0)
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
-  const borderColor = focused ? colors.accent : colors.border
+  const borderColor = focused ? colors.accent : colors.muted
   const iconPalette = useMemo(() => createDbIconPalette(colors), [colors])
 
   const treeState = {

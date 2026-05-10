@@ -83,8 +83,8 @@ export function StatusBar({ focusZone, showQueryLog, width }: StatusBarProps) {
       {visibleShortcuts.map((s, i) => (
         <text key={s.key}>
           {i > 0 ? SEP : ""}
-          <span fg={colors.info}>[{s.key}]</span>
-          <span fg={colors.muted}> {s.desc}</span>
+          <span fg={colors.accent}>[{s.key}]</span>
+          <span fg={colors.info}> {s.desc}</span>
         </text>
       ))}
     </box>
