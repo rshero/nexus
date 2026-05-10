@@ -141,7 +141,11 @@ export function ThemePicker({
         })}
       </box>
       <box height={1} paddingX={1}>
-        <text fg={colors.border}>[↑/↓] Preview  [Enter] Apply  [Esc] Cancel</text>
+        <text fg={colors.info}>
+          <span fg={colors.accent}>[↑/↓]</span> Preview{"  "}
+          <span fg={colors.accent}>[Enter]</span> Apply{"  "}
+          <span fg={colors.accent}>[Esc]</span> Cancel
+        </text>
       </box>
     </CenteredModal>
   )
