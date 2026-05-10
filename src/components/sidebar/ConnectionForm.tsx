@@ -390,10 +390,10 @@ export function ConnectionForm({ left, top, editMode = false, existingConfig, on
       </box>
 
       <box paddingX={1}>
-        <text fg={colors.border}>
-          <span fg={colors.info}>[Tab]</span> Next {"  "}
-          <span fg={colors.info}>[Enter]</span> Save {"  "}
-          <span fg={colors.info}>[Esc]</span> Cancel
+        <text fg={colors.info}>
+          <span fg={colors.accent}>[Tab]</span> Next {"  "}
+          <span fg={colors.accent}>[Enter]</span> Save {"  "}
+          <span fg={colors.accent}>[Esc]</span> Cancel
         </text>
       </box>
     </box>

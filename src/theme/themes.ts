@@ -1,5 +1,7 @@
 export type ThemeName =
   | "tokyo-night"
+  | "dracula"
+  | "t3chat"
   | "catppuccin-latte"
   | "catppuccin-frappe"
   | "catppuccin-macchiato"
@@ -57,6 +59,56 @@ export const THEMES: Record<ThemeName, ThemeDefinition> = {
       error: "#f7768e",
       purple: "#bb9af7",
       teal: "#73daca",
+    },
+  },
+  dracula: {
+    name: "dracula",
+    label: "Dracula",
+    colors: {
+      overlay: "#191a21",
+      background: "#282a36",
+      backgroundMuted: "#21222c",
+      surface: "#343746",
+      surfaceAlt: "#44475a",
+      surfaceStrong: "#54576b",
+      completionBackground: "#21222c",
+      completionSurface: "#343746",
+      border: "#6272a4",
+      muted: "#7f86a6",
+      text: "#d6d6e5",
+      textBright: "#f8f8f2",
+      accent: "#bd93f9",
+      info: "#8be9fd",
+      success: "#50fa7b",
+      warning: "#f1fa8c",
+      error: "#ff5555",
+      purple: "#bd93f9",
+      teal: "#8be9fd",
+    },
+  },
+  t3chat: {
+    name: "t3chat",
+    label: "T3Chat",
+    colors: {
+      overlay: "#100a0e",
+      background: "#221d27",
+      backgroundMuted: "#28222d",
+      surface: "#2c2632",
+      surfaceAlt: "#362d3d",
+      surfaceStrong: "#463753",
+      completionBackground: "#100a0e",
+      completionSurface: "#2c2632",
+      border: "#3b3237",
+      muted: "#c2b6cf",
+      text: "#d2c4de",
+      textBright: "#f8f1f5",
+      accent: "#db2777",
+      info: "#efc0d8",
+      success: "#efc0d8",
+      warning: "#e88c30",
+      error: "#e23670",
+      purple: "#a84370",
+      teal: "#c2b6cf",
     },
   },
   "catppuccin-latte": {
@@ -167,6 +219,8 @@ export const THEME_ORDER: ThemeName[] = [
   "catppuccin-frappe",
   "catppuccin-macchiato",
   "catppuccin-mocha",
+  "dracula",
+  "t3chat",
 ]
 
 export function getNextThemeName(current: ThemeName): ThemeName {

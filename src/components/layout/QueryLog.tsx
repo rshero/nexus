@@ -43,7 +43,7 @@ function getLevelColor(level: ConsoleEntry["level"], colors: ThemeColors): strin
 export function Console({ height, focused }: ConsoleProps) {
   const { state } = useApp()
   const { colors } = useTheme()
-  const borderColor = focused ? colors.accent : colors.border
+  const borderColor = focused ? colors.accent : colors.muted
   const entries = state.consoleEntries
 
   return (
@@ -58,7 +58,7 @@ export function Console({ height, focused }: ConsoleProps) {
     >
       {entries.length === 0 ? (
         <box flexGrow={1} paddingX={1}>
-          <text fg={colors.muted}>No activity yet</text>
+          <text fg={colors.text}>No activity yet</text>
         </box>
       ) : (
         <scrollbox

@@ -78,7 +78,7 @@ export function DatabasePicker({ connectionId, connectionName, database, mode = 
   const selectedChipBg = colors.surfaceStrong
   const selectedChipFg = colors.textBright
   const activeTabBg = colors.surfaceStrong
-  const hintKeyColor = colors.info
+  const hintKeyColor = colors.accent
 
   const isSearch = mode === "search"
   const title = isSearch ? ` Search: ${database} ` : activeTab === "databases" ? " Select Databases " : " Edit Connection "
@@ -529,22 +529,22 @@ export function DatabasePicker({ connectionId, connectionName, database, mode = 
         <box paddingX={0} marginTop={1} flexDirection="column" flexShrink={0}>
           {isSearch ? (
             <>
-              <text fg={colors.border}>
+              <text fg={colors.info}>
                 <span fg={hintKeyColor}>[Enter]</span> Open {"  "}
                 <span fg={hintKeyColor}>[/]</span> Search
               </text>
-              <text fg={colors.border}>
+              <text fg={colors.info}>
                 <span fg={hintKeyColor}>[j/k]</span> Navigate {"  "}
                 <span fg={hintKeyColor}>[Esc]</span> Close
               </text>
             </>
         ) : (
           <>
-            <text fg={colors.border}>
+            <text fg={colors.info}>
               <span fg={hintKeyColor}>[Space]</span> Toggle {"  "}
               <span fg={hintKeyColor}>[a]</span> Check/Uncheck All
             </text>
-            <text fg={colors.border}>
+            <text fg={colors.info}>
               <span fg={hintKeyColor}>[Tab]</span> Edit {"  "}
               <span fg={hintKeyColor}>[/]</span> Search {"  "}
               <span fg={hintKeyColor}>[Esc]</span> Close
@@ -720,11 +720,11 @@ export function DatabasePicker({ connectionId, connectionName, database, mode = 
 
           {/* Hints */}
           <box paddingX={0} marginTop={1} flexDirection="column" flexShrink={0}>
-            <text fg={colors.border}>
+            <text fg={colors.info}>
               <span fg={hintKeyColor}>[↑↓]</span> Navigate {"  "}
               <span fg={hintKeyColor}>[Enter]</span> Save
             </text>
-            <text fg={colors.border}>
+            <text fg={colors.info}>
               <span fg={hintKeyColor}>[Tab]</span> Switch Tab {"  "}
               <span fg={hintKeyColor}>[Esc]</span> Cancel
             </text>
