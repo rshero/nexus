@@ -1,3 +1,6 @@
+import { useCallback, useRef } from "react"
+import { useKeyboard } from "@opentui/react"
+import type { ScrollBoxRenderable } from "@opentui/core"
 import { useApp } from "../../state/AppContext.tsx"
 import { formatTimestamp, type ConsoleEntry } from "../../state/console.ts"
 import type { ThemeColors } from "../../theme/themes.ts"
@@ -43,8 +46,54 @@ function getLevelColor(level: ConsoleEntry["level"], colors: ThemeColors): strin
 export function Console({ height, focused }: ConsoleProps) {
   const { state } = useApp()
   const { colors } = useTheme()
+  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const borderColor = focused ? colors.accent : colors.muted
   const entries = state.consoleEntries
+
+  const scrollBy = useCallback((delta: number) => {
+    const scrollbox = scrollRef.current
+    if (!scrollbox) return
+
+    const maxScrollTop = Math.max(0, scrollbox.scrollHeight - scrollbox.viewport.height)
+    const nextScrollTop = Math.max(0, Math.min(maxScrollTop, scrollbox.scrollTop + delta))
+    scrollbox.scrollTo({ x: 0, y: nextScrollTop })
+  }, [])
+
+  useKeyboard((key) => {
+    if (!focused || entries.length === 0) return
+
+    if (key.name === "down" || key.name === "j") {
+      scrollBy(1)
+      return
+    }
+
+    if (key.name === "up" || key.name === "k") {
+      scrollBy(-1)
+      return
+    }
+
+    if (key.name === "pagedown") {
+      scrollBy(scrollRef.current?.viewport.height ?? 1)
+      return
+    }
+
+    if (key.name === "pageup") {
+      scrollBy(-(scrollRef.current?.viewport.height ?? 1))
+      return
+    }
+
+    if (key.name === "home" || (key.name === "g" && !key.shift)) {
+      scrollRef.current?.scrollTo({ x: 0, y: 0 })
+      return
+    }
+
+    if (key.name === "end" || (key.name === "g" && key.shift)) {
+      const scrollbox = scrollRef.current
+      if (!scrollbox) return
+      const maxScrollTop = Math.max(0, scrollbox.scrollHeight - scrollbox.viewport.height)
+      scrollbox.scrollTo({ x: 0, y: maxScrollTop })
+    }
+  })
 
   return (
     <box
@@ -62,9 +111,9 @@ export function Console({ height, focused }: ConsoleProps) {
         </box>
       ) : (
         <scrollbox
+          ref={scrollRef}
           flexGrow={1}
           paddingX={1}
-          focused={focused}
           stickyScroll
           stickyStart="bottom"
           scrollY

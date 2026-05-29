@@ -98,6 +98,7 @@ interface AppContextValue {
   prevTab: () => void
   fetchTabData: (tabId: string, offset?: number, pageSize?: number, filter?: string) => Promise<QueryResult | null>
   updateTabCell: (tabId: string, row: Record<string, unknown>, field: string, value: unknown) => Promise<void>
+  insertTabRow: (tabId: string, row: Record<string, unknown>) => Promise<void>
   setTabFilter: (tabId: string, filter: string) => void
   setTabSort: (tabId: string, sort: Record<string, 1 | -1> | null) => void
   setTabPageSize: (tabId: string, pageSize: number) => void
@@ -677,14 +678,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!conn) return null
 
       const dbType = conn.config.type
-      const itemName = tab.kind === "query-console" ? "database" : dbType === "mysql" || dbType === "postgres" ? "table" : dbType === "redis" ? "keys" : "collection"
+      const executesRawQuery = tab.kind === "query-console" || tab.kind === "query-result"
+      const itemName = executesRawQuery
+        ? "database"
+        : dbType === "mysql" || dbType === "postgres"
+          ? "table"
+          : dbType === "redis"
+            ? "keys"
+            : "collection"
 
       const tabDataEntry = state.tabData.get(tabId)
       const limit = TABLE_PAGE_SIZE
       const off = offset ?? tabDataEntry?.currentOffset ?? 0
       const activeFilter = filter !== undefined ? filter : (tabDataEntry?.filter || "")
 
-      if (tab.kind === "query-console" && !activeFilter.trim()) {
+      if (executesRawQuery && !activeFilter.trim()) {
         dispatch({
           type: "SET_TAB_DATA",
           tabId,
@@ -707,7 +715,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
 
         const result =
-          tab.kind === "query-console"
+          executesRawQuery
             ? await driver.queryDatabase?.({
                 database: tab.database,
                 rawQuery: activeFilter,
@@ -734,7 +742,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         const msg = formatRuntimeError(e)
         dispatch({ type: "SET_TAB_DATA", tabId, data: { loading: false, error: msg } })
-        const targetLabel = tab.kind === "query-console" ? tab.database : tab.collection
+        const targetLabel = executesRawQuery ? tab.database : tab.collection
         log("error", "query", `Failed to query ${itemName} ${targetLabel}: ${msg}`)
         return null
       }
@@ -750,6 +758,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const driver = driverMap.get(tab.connectionId)
       if (!driver) throw new Error("No active driver for tab connection")
       if (!driver.updateField) throw new Error("This database driver does not support editing")
+      if (tab.kind === "query-result" && tab.collection === "__query_result__") {
+        throw new Error("Cannot edit this query result because its source collection could not be determined")
+      }
 
       log("info", "query", `Applying edit to ${tab.collection}.${field}...`)
 
@@ -762,6 +773,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
 
       log("success", "query", `${result.query} — affected ${result.affected}`)
+
+      const tabDataEntry = state.tabData.get(tabId)
+      fetchTabData(tabId, tabDataEntry?.currentOffset ?? 0, tabDataEntry?.pageSize)
+    },
+    [state.tabs, state.tabData, fetchTabData, log]
+  )
+
+  const insertTabRow = useCallback(
+    async (tabId: string, row: Record<string, unknown>) => {
+      const tab = state.tabs.find((t) => t.id === tabId)
+      if (!tab) throw new Error("Tab not found")
+      if (tab.kind === "query-console" || tab.kind === "query-result") {
+        throw new Error("Rows can only be pasted into collection/table tabs")
+      }
+
+      const driver = driverMap.get(tab.connectionId)
+      if (!driver) throw new Error("No active driver for tab connection")
+      if (!driver.insertRow) throw new Error("This database driver does not support row inserts")
+
+      log("info", "query", `Inserting row into ${tab.collection}...`)
+
+      const result = await driver.insertRow({
+        database: tab.database,
+        collection: tab.collection,
+        row,
+      })
+
+      log("success", "query", `${result.query} — inserted ${result.inserted}`)
 
       const tabDataEntry = state.tabData.get(tabId)
       fetchTabData(tabId, tabDataEntry?.currentOffset ?? 0, tabDataEntry?.pageSize)
@@ -882,6 +921,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         prevTab,
         fetchTabData,
         updateTabCell,
+        insertTabRow,
         setTabFilter,
         setTabSort,
         setTabPageSize,

@@ -6,6 +6,8 @@ import type {
   ConnectionConfig,
   DatabaseQueryOpts,
   DbDriver,
+  InsertRowOpts,
+  InsertRowResult,
   UpdateFieldOpts,
   UpdateFieldResult,
 } from "./types.ts"
@@ -352,6 +354,25 @@ export function createPostgresDriver(): DbDriver {
       return {
         query: sql,
         affected: result.rowCount ?? 0,
+      }
+    },
+
+    async insertRow(opts: InsertRowOpts): Promise<InsertRowResult> {
+      const client = await getClient(opts.database)
+      const entries = Object.entries(opts.row).filter(([, value]) => value !== undefined)
+      if (entries.length === 0) {
+        throw new Error("Cannot insert empty row")
+      }
+
+      const columns = entries.map(([key]) => quoteIdentifier(key)).join(", ")
+      const placeholders = entries.map((_, index) => `$${index + 1}`).join(", ")
+      const values = entries.map(([, value]) => value)
+      const sql = `INSERT INTO ${quoteTableName(opts.collection)} (${columns}) VALUES (${placeholders})`
+      const result = await client.query(sql, values)
+
+      return {
+        query: sql,
+        inserted: result.rowCount ?? 0,
       }
     },
   }

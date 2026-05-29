@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import { useKeyboard } from "@opentui/react"
+import { useKeyboard, useRenderer } from "@opentui/react"
 import { useApp } from "../../state/AppContext.tsx"
-import { DataTable, type SelectedCell } from "../main/DataTable.tsx"
+import { DataTable, type RowCopyContext, type SelectedCell } from "../main/DataTable.tsx"
 import { FilterBar } from "../main/FilterBar.tsx"
 import { QueryConsole } from "../main/QueryConsole.tsx"
 import { DB_TYPE_ICONS, getDbTypeColors } from "../../constants/dbIcons.ts"
 import { useTheme } from "../../theme/ThemeContext.tsx"
 import { nodeId } from "../../state/tree.ts"
+import { getQueryResultSourceCollection } from "../../utils/queryResultSource.ts"
+import { debug } from "../../utils/debug.ts"
+import { copyTextToClipboard } from "../../utils/clipboard.ts"
+import { parseRowFromClipboard } from "../../utils/rowClipboard.ts"
 
 interface MainPanelProps {
   focused: boolean
@@ -25,7 +29,8 @@ export function MainPanel({
   onShowToast,
   onQueryInputFocusChange,
 }: MainPanelProps) {
-  const { state, dispatch, closeTab, nextTab, prevTab, fetchTabData, setTabFilter, setTabSort, getDriver } = useApp()
+  const renderer = useRenderer()
+  const { state, dispatch, closeTab, nextTab, prevTab, fetchTabData, insertTabRow, setTabFilter, setTabSort, getDriver } = useApp()
   const { colors } = useTheme()
   const borderColor = focused ? colors.accent : colors.border
   const { tabs, activeTabId, tabData, connections } = state
@@ -33,6 +38,7 @@ export function MainPanel({
   const [filterBarFocused, setFilterBarFocused] = useState(false)
   const [queryInputFocused, setQueryInputFocused] = useState(true)
   const [querySchemaCollections, setQuerySchemaCollections] = useState<string[]>([])
+  const [copiedRowText, setCopiedRowText] = useState<string | null>(null)
   const querySchemaCacheRef = useRef(new Map<string, string[]>())
 
   const applyQuerySchemaCollections = useCallback((collections: string[]) => {
@@ -238,6 +244,7 @@ export function MainPanel({
 
       if (activeTab.kind === "query-console") {
         const resultTabId = `${activeTab.connectionId}/${activeTab.database}/__query_result__/${Date.now()}`
+        const sourceCollection = getQueryResultSourceCollection(dbType, filter) ?? "__query_result__"
         dispatch({
           type: "OPEN_TAB",
           tab: {
@@ -245,7 +252,7 @@ export function MainPanel({
             label: `Query result [${activeTab.database}]`,
             connectionId: activeTab.connectionId,
             database: activeTab.database,
-            collection: "__query_result__",
+            collection: sourceCollection,
             kind: "query-result",
           },
         })
@@ -303,6 +310,63 @@ export function MainPanel({
       onOpenDetail(activeTabId, cell)
     },
     [activeTabId, isQueryConsoleTab, onOpenDetail]
+  )
+
+  const handleRowCopy = useCallback(
+    (text: string, context: RowCopyContext) => {
+      const tabLabel = activeTab ? `${activeTab.database}.${activeTab.collection}` : "unknown"
+      setCopiedRowText(text)
+
+      const result = copyTextToClipboard(renderer, text)
+
+      if (result.error) {
+        debug(
+          `[MainPanel.copyRow] failed tab=${tabLabel} dbType=${context.dbType} rowIndex=${context.rowIndex} bytes=${context.byteLength} error=${JSON.stringify(result.error)}`
+        )
+      } else {
+        debug(
+          `[MainPanel.copyRow] tab=${tabLabel} kind=${activeTab?.kind ?? "unknown"} dbType=${context.dbType} rowIndex=${context.rowIndex} chars=${context.textLength} bytes=${context.byteLength} osc52Supported=${result.osc52Supported} rendererCopied=${result.rendererCopied} fallbackAttempted=${result.fallbackAttempted} fallbackCopied=${result.fallbackCopied} base64Bytes=${result.base64Bytes} copied=${result.copied}`
+        )
+      }
+
+      onShowToast(result.copied ? "Copied row to clipboard" : "Clipboard copy failed")
+    },
+    [activeTab, renderer, onShowToast]
+  )
+
+  const handleRowPaste = useCallback(
+    (text?: string) => {
+      if (!activeTabId || !activeTab) return
+
+      const clipboardText = text ?? copiedRowText
+      if (!clipboardText) {
+        onShowToast("No copied row to paste")
+        return
+      }
+
+      const parsed = parseRowFromClipboard(clipboardText)
+      if (parsed.error || !parsed.row) {
+        debug(`[MainPanel.pasteRow] parse failed tab=${activeTab.database}.${activeTab.collection}: ${parsed.error}`)
+        onShowToast(parsed.error ?? "Invalid row clipboard data")
+        return
+      }
+
+      const keys = Object.keys(parsed.row)
+      debug(
+        `[MainPanel.pasteRow] inserting tab=${activeTab.database}.${activeTab.collection} kind=${activeTab.kind ?? "collection"} dbType=${dbType} keys=${keys.length} source=${text ? "paste-event" : "internal"}`
+      )
+
+      void insertTabRow(activeTabId, parsed.row)
+        .then(() => {
+          onShowToast("Inserted row")
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error)
+          debug(`[MainPanel.pasteRow] insert failed tab=${activeTab.database}.${activeTab.collection}:`, message)
+          onShowToast(`Insert failed: ${message}`)
+        })
+    },
+    [activeTabId, activeTab, copiedRowText, dbType, insertTabRow, onShowToast]
   )
 
   return (
@@ -401,9 +465,12 @@ export function MainPanel({
               currentOffset={activeData.currentOffset}
               pageSize={activeData.pageSize}
               currentSort={activeData.sort}
+              dbType={dbType}
               onPageChange={isQueryResultTab ? undefined : handlePageChange}
               onColumnSort={isQueryResultTab ? undefined : handleColumnSort}
               onCellSelect={handleCellSelect}
+              onRowCopy={handleRowCopy}
+              onRowPaste={handleRowPaste}
               sidebarWidth={sidebarWidth}
               detailWidth={detailWidth}
               filterBarActive={filterBarFocused}

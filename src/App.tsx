@@ -254,13 +254,13 @@ export function App() {
     // Block all other keys when modal is open
     if (hasBlockingModal) return
 
+    const shouldBlockMainPanelShortcuts = focusZone === "main" && isQueryInputFocused
+    if (shouldBlockMainPanelShortcuts) return
+
     if (key.name === "`") {
       setShowQueryLog((v) => !v)
       return
     }
-
-    const shouldBlockMainPanelShortcuts = focusZone === "main" && isQueryInputFocused
-    if (shouldBlockMainPanelShortcuts) return
 
     if (key.name === "tab" && !key.ctrl) {
       setFocusZone((z) => {

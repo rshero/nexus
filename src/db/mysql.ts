@@ -1,5 +1,14 @@
 import mysql from "mysql2/promise"
-import type { DbDriver, ColumnDef, CollectionPage, DatabaseQueryOpts, UpdateFieldOpts, UpdateFieldResult } from "./types.ts"
+import type {
+  DbDriver,
+  ColumnDef,
+  CollectionPage,
+  DatabaseQueryOpts,
+  UpdateFieldOpts,
+  UpdateFieldResult,
+  InsertRowOpts,
+  InsertRowResult,
+} from "./types.ts"
 import { parseMySQLQuery, sortToOrderBy } from "../utils/queryParser.ts"
 
 export function createMysqlDriver(): DbDriver {
@@ -218,6 +227,28 @@ export function createMysqlDriver(): DbDriver {
       return {
         query: sql,
         affected: (result as mysql.ResultSetHeader).affectedRows,
+      }
+    },
+
+    async insertRow(opts: InsertRowOpts): Promise<InsertRowResult> {
+      if (!connection) throw new Error("Not connected")
+
+      const entries = Object.entries(opts.row).filter(([, value]) => value !== undefined)
+      if (entries.length === 0) {
+        throw new Error("Cannot insert empty row")
+      }
+
+      await connection.query(`USE \`${opts.database}\``)
+
+      const columns = entries.map(([key]) => `\`${key}\``).join(", ")
+      const placeholders = entries.map(() => "?").join(", ")
+      const values = entries.map(([, value]) => value)
+      const sql = `INSERT INTO \`${opts.collection}\` (${columns}) VALUES (${placeholders})`
+      const [result] = await connection.query(sql, values)
+
+      return {
+        query: sql,
+        inserted: (result as mysql.ResultSetHeader).affectedRows,
       }
     },
   }

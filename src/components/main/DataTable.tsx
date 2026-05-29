@@ -1,8 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import type { MouseEvent as TuiMouseEvent } from "@opentui/core"
-import type { QueryResult, ColumnDef } from "../../db/types.ts"
+import type { QueryResult, ColumnDef, DbType } from "../../db/types.ts"
 import { useTheme } from "../../theme/ThemeContext.tsx"
+import { formatRowForClipboard } from "../../utils/rowClipboard.ts"
+import { debug } from "../../utils/debug.ts"
+import { subscribePaste } from "../../state/paste.ts"
 
 export interface SelectedCell {
   rowIndex: number
@@ -12,6 +15,16 @@ export interface SelectedCell {
   row: Record<string, unknown>
 }
 
+export interface RowCopyContext {
+  dbType: DbType
+  rowIndex: number
+  columnCount: number
+  rowKeyCount: number
+  rowKeys: string[]
+  textLength: number
+  byteLength: number
+}
+
 interface DataTableProps {
   result: QueryResult
   focused: boolean
@@ -19,8 +32,11 @@ interface DataTableProps {
   pageSize: number
   onPageChange?: (offset: number) => void
   onCellSelect?: (cell: SelectedCell) => void
+  onRowCopy?: (text: string, context: RowCopyContext) => void
+  onRowPaste?: (text?: string) => void
   onColumnSort?: (column: string, direction: 1 | -1) => void
   currentSort?: Record<string, 1 | -1> | null
+  dbType: DbType
   sidebarWidth?: number
   detailWidth?: number
   filterBarActive?: boolean
@@ -122,8 +138,11 @@ export function DataTable({
   pageSize: _pageSize,
   onPageChange,
   onCellSelect,
+  onRowCopy,
+  onRowPaste,
   onColumnSort,
   currentSort,
+  dbType,
   sidebarWidth = 0,
   detailWidth = 0,
   filterBarActive = false,
@@ -379,6 +398,39 @@ export function DataTable({
     })
   }, [onCellSelect, rows, columns, selectedRow, selectedCol])
 
+  const copySelectedRow = useCallback(() => {
+    if (!onRowCopy) return
+    const row = rows[selectedRow]
+    if (!row) return
+
+    const text = formatRowForClipboard(dbType, columns, row)
+    const rowKeys = Object.keys(row)
+    const context: RowCopyContext = {
+      dbType,
+      rowIndex: selectedRow,
+      columnCount: columns.length,
+      rowKeyCount: rowKeys.length,
+      rowKeys,
+      textLength: text.length,
+      byteLength: new TextEncoder().encode(text).length,
+    }
+
+    debug(
+      `[DataTable.copyRow] prepared dbType=${context.dbType} rowIndex=${context.rowIndex} columns=${context.columnCount} rowKeys=${context.rowKeyCount} chars=${context.textLength} bytes=${context.byteLength} keys=${JSON.stringify(context.rowKeys)}`
+    )
+    onRowCopy(text, context)
+  }, [onRowCopy, dbType, columns, rows, selectedRow])
+
+  useEffect(() => {
+    if (!onRowPaste) return
+
+    return subscribePaste((text) => {
+      if (!focused) return
+      debug(`[DataTable.pasteRow] received paste chars=${text.length} bytes=${new TextEncoder().encode(text).length}`)
+      onRowPaste(text)
+    })
+  }, [focused, onRowPaste])
+
   useKeyboard((key) => {
     if (!focused) return
 
@@ -450,6 +502,16 @@ export function DataTable({
 
     if (key.name === "v") {
       emitSelectedCell()
+      return
+    }
+
+    if (key.name === "c" && !key.ctrl && !key.meta && !key.option) {
+      copySelectedRow()
+      return
+    }
+
+    if (key.name === "p" && key.shift && !key.ctrl && !key.meta && !key.option) {
+      onRowPaste?.()
       return
     }
 
@@ -677,6 +739,10 @@ export function DataTable({
               {"  "}
               <span fg={COLORS.hintKey}>[/]</span>
               <span fg={COLORS.pageInactive}> Filter </span>
+              <span fg={COLORS.hintKey}>[c]</span>
+              <span fg={COLORS.pageInactive}> Copy Row </span>
+              <span fg={COLORS.hintKey}>[P]</span>
+              <span fg={COLORS.pageInactive}> Paste Row </span>
               <span fg={COLORS.hintKey}>[s]</span>
               <span fg={COLORS.pageInactive}> Sort</span>
             </>

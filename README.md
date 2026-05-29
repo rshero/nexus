@@ -63,3 +63,13 @@ bun dev
 - [x] Query executor and auto completions
 - [x] Loading states, error handling & polish
 - [ ] Multiple View options (json, text, tree etc.) - Not considering it right now
+
+## Credits
+
+Nexus is built with [OpenTUI](https://github.com/sst/opentui), [React](https://react.dev/), and [Bun](https://bun.sh/).
+
+Database connectivity is powered by the official and community clients for [MongoDB](https://www.mongodb.com/docs/drivers/node/current/), [MySQL](https://sidorares.github.io/node-mysql2/), [PostgreSQL](https://node-postgres.com/), [Redis](https://github.com/redis/ioredis), and [Elasticsearch](https://www.elastic.co/docs/reference/elasticsearch/clients/javascript). Secure credential storage uses [@napi-rs/keyring](https://github.com/Brooooooklyn/keyring-rs).
+
+## License
+
+Nexus is distributed under the [GNU General Public License v3.0](LICENSE).

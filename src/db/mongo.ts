@@ -8,6 +8,8 @@ import type {
   CollectionPage,
   UpdateFieldOpts,
   UpdateFieldResult,
+  InsertRowOpts,
+  InsertRowResult,
 } from "./types.ts"
 import { canStartMongoRegexLiteral, parseMongoExtendedJson, parseMongoFilter, readMongoRegexLiteral } from "../utils/queryParser.ts"
 
@@ -40,6 +42,14 @@ export function createMongoDriver(): DbDriver {
       return new ObjectId(id)
     }
     return id
+  }
+
+  function normalizeMongoInsertRow(row: Record<string, unknown>): Record<string, unknown> {
+    const next = { ...row }
+    if (typeof next._id === "string" && ObjectId.isValid(next._id)) {
+      next._id = new ObjectId(next._id)
+    }
+    return next
   }
 
   interface ParsedMongoShellQuery {
@@ -544,6 +554,17 @@ export function createMongoDriver(): DbDriver {
       const query = `db.${opts.collection}.updateOne({_id:${JSON.stringify(rowId)}}, {$set:{${opts.field}:...}})`
 
       return { query, affected: result.modifiedCount }
+    },
+
+    async insertRow(opts: InsertRowOpts): Promise<InsertRowResult> {
+      const database = getDb(opts.database)
+      const collection = database.collection(opts.collection)
+      const row = normalizeMongoInsertRow(opts.row)
+
+      const result = await collection.insertOne(row)
+      const query = `db.${opts.collection}.insertOne(${JSON.stringify(opts.row)})`
+
+      return { query, inserted: result.acknowledged ? 1 : 0 }
     },
   }
 }

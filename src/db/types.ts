@@ -74,6 +74,17 @@ export interface UpdateFieldResult {
   affected: number
 }
 
+export interface InsertRowOpts {
+  database: string
+  collection: string
+  row: Record<string, unknown>
+}
+
+export interface InsertRowResult {
+  query: string
+  inserted: number
+}
+
 export interface DbDriver {
   type: DbType
   connect(config: ConnectionConfig): Promise<void>
@@ -87,6 +98,7 @@ export interface DbDriver {
   query(opts: QueryOpts): Promise<QueryResult>
   queryDatabase?(opts: DatabaseQueryOpts): Promise<QueryResult>
   updateField?(opts: UpdateFieldOpts): Promise<UpdateFieldResult>
+  insertRow?(opts: InsertRowOpts): Promise<InsertRowResult>
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error"

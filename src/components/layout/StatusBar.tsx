@@ -41,6 +41,8 @@ function getShortcuts(focusZone: FocusZone, showQueryLog: boolean): Shortcut[] {
       { key: "w", desc: "Close Tab" },
       { key: "r", desc: "Reload" },
       { key: "Enter/v", desc: "View Cell" },
+      { key: "c", desc: "Copy Row" },
+      { key: "P", desc: "Paste Row" },
     ],
     detail: [
       { key: "Ctrl+A", desc: "Apply" },

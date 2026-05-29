@@ -7,6 +7,8 @@ import type {
   CollectionPage,
   UpdateFieldOpts,
   UpdateFieldResult,
+  InsertRowOpts,
+  InsertRowResult,
 } from "./types.ts"
 import { parseElasticSearchFilter } from "../utils/queryParser.ts"
 
@@ -291,6 +293,25 @@ export function createElasticSearchDriver(): DbDriver {
       return {
         query,
         affected: (result.result as string) === "updated" ? 1 : 0,
+      }
+    },
+
+    async insertRow(opts: InsertRowOpts): Promise<InsertRowResult> {
+      if (!client) throw new Error("Not connected")
+
+      const { _id, _index, _score, ...document } = opts.row
+      const docId = typeof _id === "string" && _id.length > 0 ? _id : undefined
+      const result = await client.index({
+        index: opts.collection,
+        ...(docId ? { id: docId } : {}),
+        document,
+        refresh: true,
+      })
+      const query = `POST ${opts.collection}/_doc${docId ? `/${docId}` : ""}\n${JSON.stringify(document, null, 2)}`
+
+      return {
+        query,
+        inserted: (result.result as string) === "created" || (result.result as string) === "updated" ? 1 : 0,
       }
     },
   }
