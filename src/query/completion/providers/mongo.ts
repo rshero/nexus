@@ -35,6 +35,22 @@ const ROOT_OPERATIONS: CompletionSuggestion[] = [
     detail: "Count documents",
   },
   {
+    id: "mongo-op-deleteOne",
+    label: "deleteOne({})",
+    kind: "operation",
+    insertText: "deleteOne({})",
+    cursorOffset: "deleteOne({".length,
+    detail: "Delete a single document",
+  },
+  {
+    id: "mongo-op-deleteMany",
+    label: "deleteMany({})",
+    kind: "operation",
+    insertText: "deleteMany({})",
+    cursorOffset: "deleteMany({".length,
+    detail: "Delete multiple documents",
+  },
+  {
     id: "mongo-op-aggregate",
     label: "aggregate([])",
     kind: "operation",
@@ -198,7 +214,7 @@ function extractMongoKeyToken(input: string): KeyToken | null {
 function parseMongoCompletionContext(query: string, cursor: number): ParsedContext | null {
   const beforeCursor = query.slice(0, cursor)
 
-  const filterCall = /db\.([A-Za-z0-9_$]+)\.(find|findOne|countDocuments)\s*\(\s*\{([\s\S]*)$/i.exec(beforeCursor)
+  const filterCall = /db\.([A-Za-z0-9_$]+)\.(find|findOne|countDocuments|deleteOne|deleteMany)\s*\(\s*\{([\s\S]*)$/i.exec(beforeCursor)
   if (filterCall) {
     const collection = filterCall[1] ?? ""
     const filterBody = filterCall[3] ?? ""

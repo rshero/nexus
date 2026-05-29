@@ -54,7 +54,7 @@ export function createMongoDriver(): DbDriver {
 
   interface ParsedMongoShellQuery {
     collection: string
-    operation: "find" | "findOne" | "countDocuments" | "aggregate" | "distinct"
+    operation: "find" | "findOne" | "countDocuments" | "aggregate" | "distinct" | "deleteOne" | "deleteMany"
     filter: Record<string, unknown>
     projection: Record<string, unknown> | null
     distinctField: string | null
@@ -293,6 +293,25 @@ export function createMongoDriver(): DbDriver {
       }
 
       pipeline = parsedPipeline as Array<Record<string, unknown>>
+    } else if (firstCall.name === "deleteOne" || firstCall.name === "deleteMany") {
+      operation = firstCall.name
+      if (!firstCall.args) {
+        throw new Error(`${firstCall.name}() expects a filter object`)
+      }
+
+      const deleteArgs = splitTopLevelArgs(firstCall.args)
+      if (!deleteArgs[0]) {
+        throw new Error(`${firstCall.name}() expects a filter object`)
+      }
+      if (deleteArgs.length > 1) {
+        throw new Error(`${firstCall.name}() supports only a filter argument`)
+      }
+
+      const parsed = parseMongoFilter(deleteArgs[0])
+      if (parsed.error) {
+        throw new Error(`Filter parse error: ${parsed.error}`)
+      }
+      filter = parsed.filter ?? {}
     } else {
       throw new Error(`Unsupported operation: ${firstCall.name}()`)
     }
@@ -515,6 +534,14 @@ export function createMongoDriver(): DbDriver {
         const values = await collection.distinct(parsed.distinctField, parsed.filter)
         rows = values.map((value) => ({ [parsed.distinctField!]: value }))
         totalCount = rows.length
+      } else if (parsed.operation === "deleteOne") {
+        const result = await collection.deleteOne(parsed.filter)
+        rows = [{ acknowledged: result.acknowledged, deletedCount: result.deletedCount }]
+        totalCount = rows.length
+      } else if (parsed.operation === "deleteMany") {
+        const result = await collection.deleteMany(parsed.filter)
+        rows = [{ acknowledged: result.acknowledged, deletedCount: result.deletedCount }]
+        totalCount = rows.length
       } else {
         rows = (await collection.aggregate(parsed.pipeline).toArray()) as Record<string, unknown>[]
         totalCount = rows.length
@@ -540,6 +567,10 @@ export function createMongoDriver(): DbDriver {
         query = `db.${parsed.collection}.distinct(${JSON.stringify(parsed.distinctField)}, ${JSON.stringify(parsed.filter)})`
       } else if (parsed.operation === "aggregate") {
         query = `db.${parsed.collection}.aggregate(${JSON.stringify(parsed.pipeline)})`
+      } else if (parsed.operation === "deleteOne") {
+        query = `db.${parsed.collection}.deleteOne(${JSON.stringify(parsed.filter)})`
+      } else if (parsed.operation === "deleteMany") {
+        query = `db.${parsed.collection}.deleteMany(${JSON.stringify(parsed.filter)})`
       }
 
       return { columns, rows, totalCount, duration, query }

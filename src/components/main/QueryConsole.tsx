@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useKeyboard } from "@opentui/react"
 import {
   deleteWordBackward,
@@ -164,6 +164,14 @@ function renderCursorLine(tokens: QueryToken[], line: string, lineStart: number,
   return parts
 }
 
+function findCurrentLineIndex(lineStarts: number[], cursorPos: number): number {
+  let idx = 0
+  for (let i = 0; i < lineStarts.length; i++) {
+    if ((lineStarts[i] ?? 0) <= cursorPos) idx = i
+  }
+  return idx
+}
+
 export function QueryConsole({
   focused,
   query,
@@ -181,6 +189,7 @@ export function QueryConsole({
   const [cursorPos, setCursorPos] = useState(query.length)
   const [completion, setCompletion] = useState<ActiveCompletion | null>(null)
   const [completionIndex, setCompletionIndex] = useState(0)
+  const preferredColumnRef = useRef<number | null>(null)
 
   useEffect(() => {
     setCursorPos((prev) => clamp(prev, 0, query.length))
@@ -195,7 +204,7 @@ export function QueryConsole({
     return starts
   }, [query])
   const beforeCursor = query.slice(0, cursorPos)
-  const cursorLine = beforeCursor.split("\n").length - 1
+  const cursorLine = useMemo(() => findCurrentLineIndex(lineStarts, cursorPos), [lineStarts, cursorPos])
   const cursorColumn = beforeCursor.length - (beforeCursor.lastIndexOf("\n") + 1)
   const highlightedLines = useMemo(() => highlightQueryLines(query, dbType), [query, dbType])
 
@@ -208,6 +217,7 @@ export function QueryConsole({
     (next: string, nextCursor: number) => {
       onChange(next)
       setCursorPos(clamp(nextCursor, 0, next.length))
+      preferredColumnRef.current = null
     },
     [onChange]
   )
@@ -241,6 +251,26 @@ export function QueryConsole({
     [dbType, database, schemaDatabases, schemaCollections, schemaCollectionFields, closeCompletion]
   )
 
+  const moveCursorVertical = useCallback(
+    (direction: -1 | 1): number | null => {
+      const targetLineIndex = cursorLine + direction
+      if (targetLineIndex < 0 || targetLineIndex >= lines.length) return null
+
+      const currentLineStart = lineStarts[cursorLine] ?? 0
+      const targetLineStart = lineStarts[targetLineIndex] ?? 0
+      const targetLineLength = lines[targetLineIndex]?.length ?? 0
+      const currentColumn = cursorPos - currentLineStart
+      const preferredColumn = preferredColumnRef.current ?? currentColumn
+      const nextColumn = Math.min(preferredColumn, targetLineLength)
+      const nextCursor = targetLineStart + nextColumn
+
+      preferredColumnRef.current = preferredColumn
+      setCursorPos(nextCursor)
+      return nextCursor
+    },
+    [cursorLine, cursorPos, lineStarts, lines]
+  )
+
   const applyCompletion = useCallback(
     (item: CompletionSuggestion) => {
       if (!completion) return
@@ -264,6 +294,12 @@ export function QueryConsole({
 
     if (hasCompletion && (key.name === "up" || key.name === "k")) {
       setCompletionIndex((prev) => Math.max(0, prev - 1))
+      return
+    }
+
+    if (key.ctrl && key.name === "l") {
+      updateQuery("", 0)
+      closeCompletion()
       return
     }
 
@@ -327,6 +363,7 @@ export function QueryConsole({
     }
 
     if (key.name === "left") {
+      preferredColumnRef.current = null
       const nextCursor = key.ctrl ? moveCursorWordLeft(query, cursorPos) : Math.max(0, cursorPos - 1)
       setCursorPos(nextCursor)
       refreshCompletion(query, nextCursor)
@@ -334,19 +371,34 @@ export function QueryConsole({
     }
 
     if (key.name === "right") {
+      preferredColumnRef.current = null
       const nextCursor = key.ctrl ? moveCursorWordRight(query, cursorPos) : Math.min(query.length, cursorPos + 1)
       setCursorPos(nextCursor)
       refreshCompletion(query, nextCursor)
       return
     }
 
+    if (key.name === "up") {
+      const nextCursor = moveCursorVertical(-1)
+      if (nextCursor !== null) refreshCompletion(query, nextCursor)
+      return
+    }
+
+    if (key.name === "down") {
+      const nextCursor = moveCursorVertical(1)
+      if (nextCursor !== null) refreshCompletion(query, nextCursor)
+      return
+    }
+
     if (key.name === "home") {
+      preferredColumnRef.current = null
       setCursorPos(0)
       refreshCompletion(query, 0)
       return
     }
 
     if (key.name === "end") {
+      preferredColumnRef.current = null
       const nextCursor = query.length
       setCursorPos(nextCursor)
       refreshCompletion(query, nextCursor)
@@ -412,7 +464,7 @@ export function QueryConsole({
 
   return (
     <box flexGrow={1} flexDirection="column" padding={1} onPaste={handlePaste}>
-      <text fg={colors.muted}>Enter run • Ctrl+Enter newline • Ctrl+F format • Esc exit input</text>
+      <text fg={colors.muted}>Enter run • ↑↓ move lines • Ctrl+L clear • Ctrl+Enter newline • Ctrl+F format • Esc exit input</text>
       <box height={1}>
         <text fg={colors.border}>{"─".repeat(200)}</text>
       </box>
